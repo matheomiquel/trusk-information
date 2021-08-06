@@ -1,4 +1,6 @@
 const inquirer = require('inquirer');
+const redis = require("redis");
+const client = redis.createClient();
 
 const getTruskerName = async function () {
     const value = await inquirer
@@ -59,7 +61,7 @@ const getWorkerName = async function (workerNumber) {
         console.log(`\nVous avez mis ${worker.length} employer et il en faut ${workerNumber}`)
         return await getWorkerName(workerNumber)
     }
-    return worker
+    return value.response
 }
 
 const getTruckNumber = async function () {
@@ -92,7 +94,7 @@ const getTruckVolume = async function (truckNumber) {
         console.log(`\nVous avez mis ${volumes.length} employer et il en faut ${truckNumber}`)
         return await getTuckVolume(truckNumber)
     }
-    return volumes
+    return value.response
 }
 
 const getTruckType = async function () {
@@ -118,27 +120,119 @@ const getValidation = async function (message) {
         }])
     if (value.response !== 'oui' && value.response !== 'non')
         await getValidation(message)
-    if (value.response === 'non')
+    if (value.response === 'non') {
+        client.del('truskerName')
+        client.del('societyName')
+        client.del('workerNumber')
+        client.del('workerNames')
+        client.del('truckNumber')
+        client.del('truckVolume')
+        client.del('truckType')
         await start()
+    }
+    process.exit(0)
 }
 
 const start = async function () {
-    const truskerName = await getTruskerName()
-    const societyName = await getSocietyName()
-    const workerNumber = await getWorkerNumber()
-    const workerNames = await getWorkerName(workerNumber)
-    const truckNumber = await getTruckNumber()
-    const truckVolume = await getTruckVolume(truckNumber)
-    const truckType = await getTruckType()
-    console.log('fkjdkfjsdk')
+    const truskerName = await new Promise(
+        function (resolve, reject) {
+            client.get('truskerName', async function (err, truskerName) {
+                if (truskerName) {
+                    resolve(truskerName)
+                } else {
+                    const truskerName = await getTruskerName()
+                    client.set('truskerName', truskerName)
+                    resolve(truskerName)
+                }
+            })
+        })
+
+    const societyName = await new Promise(
+        function (resolve, reject) {
+            client.get('societyName', async function (err, societyName) {
+                if (societyName) {
+                    resolve(societyName)
+                } else {
+                    const societyName = await getSocietyName()
+                    client.set('societyName', societyName)
+                    resolve(societyName)
+                }
+            })
+        })
+
+    const workerNumber = await new Promise(
+        function (resolve, reject) {
+            client.get('workerNumber', async function (err, workerNumber) {
+                if (workerNumber) {
+                    resolve(workerNumber)
+                } else {
+                    const workerNumber = await getWorkerNumber()
+                    client.set('workerNumber', workerNumber)
+                    resolve(workerNumber)
+                }
+            })
+        })
+    const workerNames = await new Promise(
+        function (resolve, reject) {
+            client.get('workerNames', async function (err, workerNames) {
+                if (workerNames) {
+                    resolve(workerNames)
+                } else {
+                    const workerNames = await getWorkerName(workerNumber)
+                    client.set('workerNames', workerNames)
+                    resolve(workerNames)
+                }
+            })
+        })
+
+
+    const truckNumber = await new Promise(
+        function (resolve, reject) {
+            client.get('truckNumber', async function (err, truckNumber) {
+                if (truckNumber) {
+                    resolve(truckNumber)
+                } else {
+                    const truckNumber = await getTruckNumber()
+                    client.set('truckNumber', truckNumber)
+                    resolve(truckNumber)
+                }
+            })
+        })
+    const truckVolume = await new Promise(
+        function (resolve, reject) {
+            client.get('truckVolume', async function (err, truckVolume) {
+                if (truckVolume) {
+                    resolve(truckVolume)
+                } else {
+                    const truckVolume = await getTruckVolume(truckNumber)
+                    client.set('truckVolume', truckVolume)
+                    resolve(truckVolume)
+                }
+            })
+        })
+    const truckType = await new Promise(
+        function (resolve, reject) {
+            client.get('truckType', async function (err, truckType) {
+                if (truckType) {
+                    resolve(truckType)
+                } else {
+                    const truckType = await getTruckType()
+                    client.set('truckType', truckType)
+                    resolve(truckType)
+                }
+            })
+        })
     const message = `Voici un résumer des données que vous avez mis:
     \nvotre nom: ${truskerName}
     \nle nom de votre société: ${societyName}
-    \nle nom de vos d'employés \n${workerNames.join('\n')}
-    \nles volumes de vos camions \n${truckVolume.join('\n')}
+    \nle nom de vos d'employés \n${workerNames.split(' ').join('\n')}
+    \nles volumes de vos camions \n${truckVolume.split(' ').join('\n')}
     \nle type de camions: ${truckType}
     \nConfirmer vous les données, mettez oui pour valider ou non pour recommencer?
     `
-    await getValidation(message)
+
+
+    getValidation(message)
+
 }
 start()
